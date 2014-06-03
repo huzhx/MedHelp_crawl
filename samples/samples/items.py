@@ -21,8 +21,14 @@ class GItem(Item):
     comment_num = Field()
     question_content = Field()
     question_tags = Field()
+
+class CItem(Item):
+    url = Field()
+    question_page_id = Field()
+    question_post_id = Field()
     comment_post_id = Field()
     comment_time = Field()
+    comment_num = Field()
     comment_user_id = Field()
     comment_to_user_id = Field()
     comment_to_user_name = Field()
