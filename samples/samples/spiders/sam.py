@@ -1,10 +1,17 @@
 from scrapy.spider import BaseSpider
+from scrapy.spider import Spider
 from scrapy.contrib.spiders import SitemapSpider
 from scrapy.selector import Selector
 from samples.items import GItem
 from samples.items import CItem
 from scrapy.utils.response import get_base_url
 import re
+from scrapy.contrib.spiders import CrawlSpider, Rule
+from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
+from scrapy.selector import HtmlXPathSelector
+from samples.items import TItem
+from scrapy.utils.url import urljoin_rfc
+from scrapy.http import Request
 
 class MedHelp_general(SitemapSpider):
     sitemap_urls = ['http://www.medhelp.org/sitemaps/mh_smi_general.xml']
@@ -91,4 +98,69 @@ class CommentContent(BaseSpider):
                 a_comment_content_raw3 = "%s|"%a_comment_id + re.sub("\xe2\x80\x93","-",a_comment_content_raw2) 
                 item['comment_content'].append(a_comment_content_raw3)
                 
+        yield item
+
+
+class MedHelp_tags(SitemapSpider):
+    sitemap_urls = ['http://www.medhelp.org/sitemaps/mh_smi_tags.xml']
+    name = 'mht'
+    def parse(self, response):
+        print response.url
+        return
+    
+class Commentmore(BaseSpider):      
+    name = "turls"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self, response):
+        sel = Selector(response)
+        list1 = sel.xpath('//div[@class="cp_panel_exp_link"]/a/@href').extract()
+        list2 = sel.xpath('//div[@class="nav"]/a/@href').extract()
+        if len(list1)>0:
+            relativeURL1 = sel.xpath('//div[@class="cp_panel_exp_link"]/a/@href').extract()[0]
+            url1 = urljoin_rfc('http://www.medhelp.org',relativeURL1)
+            print url1
+            return Request(url1, callback=self.parse) 
+        elif len(list2)==1:
+            if sel.xpath('//div[@class="nav"]/a/text()').extract()[0] == "Next":
+                relativeURL2 = sel.xpath('//div[@class="nav"]/a/@href').extract()[0]
+                url2 = urljoin_rfc('http://www.medhelp.org',relativeURL2)
+                print url2
+                return Request(url2, callback=self.parse)
+            else:
+                pass
+        elif len(list2)==2:
+            if sel.xpath('//div[@class="nav"]/a/text()').extract()[1] == "Next":
+                relativeURL3 = sel.xpath('//div[@class="nav"]/a/@href').extract()[1]
+                url3 = urljoin_rfc('http://www.medhelp.org',relativeURL3)
+                print url3
+                return Request(url3, callback=self.parse)
+            else:
+                pass
+        else:
+            pass
+        return
+
+class CommentContent(BaseSpider):
+    name = "mht_parser"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    
+    def parse(self, response):
+        sel = Selector(response)
+        item = TItem()
+        item['url'] = get_base_url(response)
+        item['subject_id'] = response.url.split('/')[-2]
+        item['subject_title'] =  sel.xpath('//div[@id="content_page_title"]/h1[@class="title"]/text()').extract()[0]
+        item['postsOnTopic_urls'] = sel.xpath('//div[@class="post_summary_title"]/a/@href').extract()
         yield item

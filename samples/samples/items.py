@@ -34,5 +34,9 @@ class CItem(Item):
     comment_to_user_name = Field()
     comment_content = Field()
     
-    
+class TItem(Item):
+    url = Field()
+    subject_id = Field()
+    subject_title = Field()
+    postsOnTopic_urls = Field()
     
