@@ -13,6 +13,7 @@ class GItem(Item):
     url = Field()
     question_page_id = Field()
     question_forum_name = Field()
+    question_forum_id = Field()
     question_title = Field()
     question_post_id = Field()
     user_id = Field()
@@ -40,3 +41,49 @@ class TItem(Item):
     subject_title = Field()
     postsOnTopic_urls = Field()
     
+class UItem(Item):
+    url = Field()
+    user_id = Field()
+    user_name = Field()
+    user_profile_id = Field()
+    user_about_me_intro = Field()
+    user_about_me_status = Field()
+    user_about_me_best_answer = Field()
+    user_about_me_top_answer = Field()
+    user_about_me_interest_tag_name = Field()
+    user_about_me_more = Field()
+    
+class SItem(Item):
+    url = Field()
+    status_id = Field()
+    status_time = Field()
+    status_content = Field()
+    status_reply = Field()
+    user_id = Field()
+
+class JItem(Item):
+    url = Field()
+    journal_id = Field()
+    journal_title = Field()
+    journal_time = Field()
+    journal_content = Field()
+    journal_reply = Field()
+    #user_id = Field()
+	#user_p_id = Field()
+
+class JItem2(Item):
+    url = Field()
+    journal_id = Field()
+    journal_title = Field()
+    journal_time = Field()
+    journal_content = Field()
+    journal_reply = Field()
+    user_p_id = Field()
+
+class NItem(Item):
+    url = Field()
+    note_id = Field()
+    user_id_sender = Field()
+    note_time = Field()
+    note_content = Field()
+    user_id_receiver = Field()

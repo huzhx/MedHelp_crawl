@@ -12,7 +12,13 @@ from scrapy.selector import HtmlXPathSelector
 from samples.items import TItem
 from scrapy.utils.url import urljoin_rfc
 from scrapy.http import Request
-
+from samples.items import UItem
+from urlparse import urljoin
+from samples.items import SItem
+from samples.items import JItem
+from samples.items import JItem2
+from samples.items import NItem
+ 
 class MedHelp_general(SitemapSpider):
     sitemap_urls = ['http://www.medhelp.org/sitemaps/mh_smi_general.xml']
     name = 'mhg'
@@ -35,6 +41,7 @@ class WebPageContent(BaseSpider):
         item['url'] = get_base_url(response)
         item['question_page_id'] = response.url.split('/')[-1]
         item['question_forum_name'] = sel.xpath('//div[@class="contentalign"]/text()').extract()[0].strip()
+        item['question_forum_id'] = sel.xpath('//div[@class="bar"]/div[@class="back header_link"]/a/@href').extract()[0].split('/')[-1]
         item['question_title'] = sel.xpath('//div[@class="desc"]/text()').extract()[0].strip()
         item['question_post_id'] = sel.xpath('//div[@id="new_posts_show_middle"]/div[@class="post_data has_bg_color"]/@id').extract()[0]
         item['user_id'] = sel.xpath('//div[@class="user_info"]/div/span/a/@href').extract()[0].split('/')[-1]
@@ -162,5 +169,261 @@ class CommentContent(BaseSpider):
         item['url'] = get_base_url(response)
         item['subject_id'] = response.url.split('/')[-2]
         item['subject_title'] =  sel.xpath('//div[@id="content_page_title"]/h1[@class="title"]/text()').extract()[0]
-        item['postsOnTopic_urls'] = sel.xpath('//div[@class="post_summary_title"]/a/@href').extract()
+        item['postsOnTopic_urls'] = []
+        if len(sel.xpath('//div[@class="post_summary_title"]/a/@href').extract()) >0:
+            for i in sel.xpath('//div[@class="post_summary_title"]/a/@href').extract():
+                item['postsOnTopic_urls'].append('http://www.medhelp.org%s'%i)
+        yield item
+        
+class MedHelp_userjournals(SitemapSpider):
+    sitemap_urls = ['http://www.medhelp.org/sitemaps/mh_smi_userjournals.xml']
+    name = 'mhu'
+    def parse(self, response):
+        print response.url
+        return
+        
+class CommentContent(BaseSpider):
+    name = "mhu_parser"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self, response):
+        sel = Selector(response)
+        relativeURL = sel.xpath('//span[@class="pp_r_txt_sel"]/a/@href|//span[@class="pp_r_txt"]/a/@href').extract()[0]
+        url = urljoin_rfc('http://www.medhelp.org',relativeURL)
+        print url
+        return
+
+class CommentContent2(BaseSpider):
+    name = "mhu_parser2"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self, response):
+        sel = Selector(response)
+        item = UItem()
+        item['url'] = get_base_url(response)
+        item['user_id'] = response.url.split('/')[-1]
+        item['user_name'] = sel.xpath('//div[@id="header"]/div[@id="page_heading"]/div[@class="page_title"]/text()').extract()[0].strip().split("'s")[0]
+        item['user_profile_id'] = sel.xpath('//div[@class="float_fix"]/span/span[@class="pp_r_txt_sel"]/a/@href').extract()[0].split('=')[1]
+        status = sel.xpath('//div[@id="mood"]/text()').extract()
+        if len(status) >0:
+            if status[0] != '...' :
+                status_raw0 = status[0]
+                status_raw1 = re.sub(r'(\xa0|\r|\t)','',status_raw0).encode("utf-8")
+                status_raw2 = re.sub('\xe2\x80\x99',"'",status_raw1)
+                status_raw3 = re.sub("\xe2\x80\x93","-",status_raw2)
+                item['user_about_me_status'] = status_raw3
+            else:
+                item['user_about_me_status'] = ""
+        else:
+            item['user_about_me_status'] = ""
+        item['user_about_me_intro'] = ''
+        part1 = sel.xpath('//div[@id= "about_me_wg"]/div[@class="bottom float_fix"]/div[@class="section"]/span/text()').extract()
+        part2 = sel.xpath('//div[@id= "about_me_wg"]/div[@class="bottom float_fix"]/div[@class="section"]/text()').extract()
+        part3 = sel.xpath('//div[@id="about_me_text"]/span[@class="about_me"]/span[@class="about_me_show"]/text()').extract()
+        part4 = sel.xpath('//div[@id="about_me_text"]/span[@class="about_me"]/span[@id="about_me_less"]/text()').extract()
+        if len(part1) > 0:
+            item['user_about_me_intro'] += ''.join(part1).strip() +' '
+        if len(part2) > 0:
+            item['user_about_me_intro'] += ' '+ ''.join(part2).strip()
+        if len(part3) > 0:
+            item['user_about_me_intro'] += ' ' + part3[0]
+        if len(part4) > 0:
+            item['user_about_me_intro'] += ' ' + part4[0]
+        tags1 = sel.xpath('//div[@class="section"]/span[@class="interests"]/span[@class="interests_show"]/a/text()|//div[@class="section"]/span[@class="interests"]/span[@class="interests_show"]/text()').extract()
+        tags2 = sel.xpath('//div[@class="section"]/span[@class="interests"]/span[@id="interests_less"]/a/text()|//div[@class="section"]/span[@class="interests"]/span[@id="interests_less"]/text()').extract()
+        tagsAll = tags1+tags2
+        tagsAll = [s.strip(',') for s in tagsAll]
+        tagsAll = [s.strip('\n') for s in tagsAll]
+        tagsAll = [s.replace(' ', '') for s in tagsAll]
+        tagsAll = filter(None, tagsAll)
+        item['user_about_me_interest_tag_name'] = tagsAll
+        numlist = sel.xpath('//div[@id="best_answers_hover"]/div/text()').extract()
+        if len(numlist) >0:
+            item['user_about_me_best_answer'] = numlist[0]
+        else:
+            item['user_about_me_best_answer'] = '0'
+        item['user_about_me_top_answer'] = sel.xpath('//div[@class="stars section"]/div[@class="stars extra_info float_fix"]/div[@class="subcategory_name"]/text()').extract()     
+        yield item
+
+class GetURLsforP(BaseSpider):
+    name = "userid"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self,response):
+        sel = Selector(response)
+        user_id = sel.xpath('//div[@class="user_info"]/div/span/a/@href').extract()[0].split('/')[-1]
+        user_url = urljoin_rfc('http://www.medhelp.org/personal_pages/user/',user_id)
+        print user_url
+        
+class Status(BaseSpider):
+    name = "status"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self,response):
+        sel = Selector(response)
+        l = sel.xpath('//div[@class="mood"]/span[@class="summary_value"]/div/a/@href').extract()
+        if len(l)>0:
+            statusl = l[0].split('/')[:-1]
+            statusurl = '/'.join(statusl)
+            statuswholeurl = urljoin_rfc('http://www.medhelp.org',statusurl)
+        else:
+            statuswholeurl = ''
+        print statuswholeurl
+
+class Status_extend(BaseSpider):
+    name = "status2"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                if i != '':
+                    self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self,response):
+        sel = Selector(response)    
+        nextl = sel.xpath('//div[@class="pagination"]/a[@class="next_page"]/@href').extract()
+        if len(nextl)>0:
+            nextp = nextl[0]
+            nexturl = urljoin('http://www.medhelp.org',nextp)
+            print nexturl
+            return Request(nexturl, callback=self.parse)
+        else:
+            pass
+        return
+        
+class statusparse(BaseSpider):
+    name = "s_parser"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                if i != '':
+                    self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self,response):
+        sel = Selector(response)
+        item = SItem()
+        item['url'] = get_base_url(response)
+        item['status_id'] = sel.xpath('//div[@class="status float_fix "]/@data-status-id').extract()
+        item['user_id'] = {}
+        item['status_time'] = {}
+        item['status_content'] = {}
+        item['status_reply'] = {}
+        if len(item['status_id']) >0:
+            for i in item['status_id']:
+                item['user_id'][i] = sel.xpath('//div[@data-status-id="'+i+'"]/@data-user-id').extract()[0]
+                item['status_time'][i] = sel.xpath('//div[@data-status-id="'+i+'"]/div/div/div/span[@class="time"]/text()').extract()[0].strip().split('-')[0].strip()
+                item['status_content'][i] = sel.xpath('//div[@data-status-id="'+i+'"]/div/div/div/span[@class="text "]/text()').extract()[0]
+                item['status_reply'][i] = sel.xpath('//div[@data-status-id="'+i+'"]/div/div/div/span[@class="comment_count"]/text()').extract()[0]      
+        else:
+            pass
+        yield item  
+
+class userJournal(BaseSpider):
+    name = "j_parser"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                if i != '':
+                    self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self,response):
+        sel = Selector(response)
+        item = JItem2()
+        item['url'] = get_base_url(response)
+        item['journal_id'] = response.url.split('/')[-2]
+        item['journal_title'] = sel.xpath('//h1/text()').extract()[0].strip()
+        item['journal_time'] = sel.xpath('//span[@class="date"]/text()').extract()[0].strip()
+        item['journal_content'] = ''.join(sel.xpath('//div[@class="journal_content"]/text()').extract()).strip()
+        item['journal_reply'] = sel.xpath('//span[@class="comment_count"]/text()').extract()[0]
+        profileRelativeURL = sel.xpath('//span[@class="pp_r_txt_sel"]/a/@href').extract()[0]
+        item['user_p_id'] = urljoin_rfc('http://www.medhelp.org', profileRelativeURL)
+        yield item
+        
+class GetURLsforN(BaseSpider):
+    name = "urlsforn"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self,response):
+        sel = Selector(response)
+        user_id = sel.xpath('//div[@class="user_info"]/div/span/a/@href').extract()[0].split('/')[-1]
+        user_url = urljoin_rfc('http://www.medhelp.org/notes/list/',user_id)
+        print user_url
+
+class Notes_extend(BaseSpider):
+    name = "urlsforn2"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                if i != '':
+                    self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self,response):
+        sel = Selector(response)    
+        nextl = sel.xpath('//div[@id="pagination_nav"]/a[@class="msg_next_page"]/@href').extract()
+        if len(nextl)>0:
+            nextp = nextl[0]
+            nexturl = urljoin('http://www.medhelp.org',nextp)
+            print nexturl
+            return Request(nexturl, callback=self.parse)
+        else:
+            pass
+        return
+ 
+class statusparse(BaseSpider):
+    name = "n_parser"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                if i != '':
+                    self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self,response):
+        sel = Selector(response)
+        item = NItem()
+        item['url'] = get_base_url(response)
+        item['note_id'] = sel.xpath('//div[@class="note_entries"]/div[@class="note_entry float_fix note_sep"]/@id').extract()
+        item['user_id_sender'] = {}
+        item['user_id_receiver'] = {}
+        item['note_time'] = {}
+        item['note_content'] = {}
+        if len(item['note_id']) >0:
+            for i in item['note_id']:
+                item['user_id_sender'][i] = sel.xpath('//div[@id="'+i+'"]/div[@class="note_desc"]/div/span/a/@id').extract()[0].split('_')[1]
+                item['user_id_receiver'][i] = sel.xpath('//div[@id="'+i+'"]/div[@class="note_desc"]/div/span/a/@id').extract()[0].split('_')[2]
+                item['note_time'][i] = sel.xpath('//div[@id="'+i+'"]/div[@class="note_desc"]/div[2]/text()').extract()[0]
+                item['note_content'][i] = sel.xpath('//div[@id="'+i+'"]/div[@class="note_desc"]/div[@class="note_msg"]/text()').extract()[0]
         yield item
