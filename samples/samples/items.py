@@ -87,3 +87,35 @@ class NItem(Item):
     note_time = Field()
     note_content = Field()
     user_id_receiver = Field()
+    
+class CommunityItem(Item):
+    url = Field()
+    forum_id = Field()
+    user_id = Field()
+
+class TrackerItem(Item):
+    url = Field()
+    tracker_id = Field()
+    tracker_name = Field()
+    user_id = Field()
+    
+class FriendItem(Item):
+    url = Field()
+    user_id_i = Field()
+    user_id_j = Field()
+    
+class GroupItem(Item):
+    url = Field()
+    group_id_text = Field()
+    group_name = Field()
+    group_type = Field()
+    group_keyword = Field()
+    group_members = Field()
+    group_description = Field()
+    
+class ForumItem(Item):
+    url = Field()
+    forum_id = Field()
+    forum_title = Field()
+    forum_keywords = Field()
+    forum_description = Field()

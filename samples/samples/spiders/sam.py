@@ -18,6 +18,11 @@ from samples.items import SItem
 from samples.items import JItem
 from samples.items import JItem2
 from samples.items import NItem
+from samples.items import CommunityItem
+from samples.items import TrackerItem
+from samples.items import FriendItem
+from samples.items import GroupItem
+from samples.items import ForumItem
  
 class MedHelp_general(SitemapSpider):
     sitemap_urls = ['http://www.medhelp.org/sitemaps/mh_smi_general.xml']
@@ -426,4 +431,209 @@ class statusparse(BaseSpider):
                 item['user_id_receiver'][i] = sel.xpath('//div[@id="'+i+'"]/div[@class="note_desc"]/div/span/a/@id').extract()[0].split('_')[2]
                 item['note_time'][i] = sel.xpath('//div[@id="'+i+'"]/div[@class="note_desc"]/div[2]/text()').extract()[0]
                 item['note_content'][i] = sel.xpath('//div[@id="'+i+'"]/div[@class="note_desc"]/div[@class="note_msg"]/text()').extract()[0]
+        yield item
+        
+class communityparse(BaseSpider):
+    name = "community_parser"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                if i != '':
+                    self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self,response):
+        sel = Selector(response)
+        item = CommunityItem()
+        item['url'] = get_base_url(response)
+        item['forum_id'] = []
+        f_list = sel.xpath('//div[@class="comm_name "]/div/a/@href|//div[@class="comm_name separated"]/div/a/@href').extract()
+        for i in f_list:
+            item['forum_id'].append(i.split('/')[-1])
+        item['user_id'] = {}
+        if len(item['forum_id']) > 0:
+            for i in item['forum_id']:
+                item['user_id'][i] = response.url.split('/')[-1]
+        yield item
+        
+class trackerparse(BaseSpider):
+    name = "tracker_parser"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                if i != '':
+                    self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self,response):
+        sel = Selector(response)
+        item = TrackerItem()
+        item['url'] = get_base_url(response)
+        item['tracker_id'] = []
+        t_list = sel.xpath('//div[@class="ut_side_link"]/a/@href').extract()
+        for i in t_list:
+            item['tracker_id'].append(i.split('/')[-1])
+        item['tracker_name'] = {}
+        if len(item['tracker_id']) > 0:
+            for i in item['tracker_id']:
+                item['tracker_name'][i] = sel.xpath('//div[@class="ut_side_link"]/a[@href="/user_trackers/show/'+i+'"]/text()').extract()[0]
+        item['user_id'] = {}
+        if len(item['tracker_id']) > 0:
+            for i in item['tracker_id']:
+                item['user_id'][i] = response.url.split('/')[-1]
+        yield item
+
+class GetURLsforF(BaseSpider):
+    name = "urlsforf"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self,response):
+        sel = Selector(response)
+        user_id = response.url.split('/')[-1]
+        user_url = urljoin_rfc('http://www.medhelp.org/friendships/list/',user_id)
+        print user_url
+       
+class Friend_extend(BaseSpider):
+    name = "urlsforf2"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                if i != '':
+                    self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self,response):
+        sel = Selector(response)    
+        nextl = sel.xpath('//div[@id="pagination_nav"]/a[@class="msg_next_page"]/@href').extract()
+        if len(nextl)>0:
+            nextp = nextl[0]
+            nexturl = urljoin('http://www.medhelp.org',nextp)
+            print nexturl
+            return Request(nexturl, callback=self.parse)
+        else:
+            pass
+        return
+
+class fparse(BaseSpider):
+    name = "f_parser"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                if i != '':
+                    self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self,response):
+        sel = Selector(response)
+        item = FriendItem()
+        item['url'] = get_base_url(response)
+        t = response.url.split('/')[-1]
+        if '?' in t:
+            item['user_id_i'] = t.split('?')[0]
+        else:
+            item['user_id_i'] = response.url.split('/')[-1]
+        item['user_id_j'] = {}
+        f_list = sel.xpath('//div[@class="mh_info_main"]/div[@class="login"]/span/a/@href').extract()
+        if len(f_list) >0:
+            for i in f_list:
+                item['user_id_j'][i.split('/')[-1]] = item['user_id_i']
+        yield item
+
+class GetURLsforGroup(BaseSpider):
+    name = "urlsforg"
+    allowed_domains = ['medhelp.org']
+    start_urls = ['http://www.medhelp.org/user_groups/list']
+    print start_urls[0]
+    def parse(self,response):
+        sel = Selector(response)    
+        nextl = sel.xpath('//div[@id="pagination_nav"]/a[@class="msg_next_page"]/@href').extract()
+        if len(nextl)>0:
+            nextp = nextl[0]
+            nexturl = urljoin('http://www.medhelp.org',nextp)
+            print nexturl
+            return Request(nexturl, callback=self.parse)
+        else:
+            pass
+        return
+
+class groupparse(BaseSpider):
+    name = "group_parser"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                if i != '':
+                    self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self,response):
+        sel = Selector(response)
+        item = GroupItem()
+        item['url'] = get_base_url(response)
+        item['group_id_text'] = sel.xpath('//div[@class="ug_listing float_fix"]/div[@class="ug_top_info float_fix"]/div[@class="ug_title"]/a/@href').extract()
+        item['group_name'] = {}
+        item['group_type'] = {}
+        item['group_keyword'] = {}
+        item['group_members'] = {}
+        item['group_description'] = {}
+        if len(item['group_id_text'])>0:
+            for i in item['group_id_text']:
+                item['group_name'][i] = sel.xpath('//div[@class="ug_listing float_fix"]/div[@class="ug_top_info float_fix"]/div[@class="ug_title"]/a[@href="'+i+'"]/text()').extract()[0].strip()
+                ginfo = sel.xpath('//div[@class="ug_listing float_fix"]/div[@class="ug_top_info float_fix"]/div[@class="ug_title"][a[@href="'+i+'"]]/div[@class="mh_info_main"]/text()').extract()[0].strip().split('-')
+                if len(ginfo) >2:
+                    item['group_type'][i] = ginfo[0].strip()
+                    item['group_keyword'][i] = ginfo[1].strip()
+                    item['group_members'][i] = ginfo[2].strip().split(' ')[0].strip()
+                else:
+                    item['group_type'][i] = '!Private'
+                    item['group_keyword'][i] = ginfo[0].strip()
+                    item['group_members'][i] = ginfo[1].strip().split(' ')[0].strip()
+                item['group_description'][i] = sel.xpath('//div[@class="ug_listing float_fix"]/div[@class="ug_top_info float_fix"][./div[@class="ug_title"]/a[@href="'+i+'"]]/div[@class="forum_description float_fix"]/text()').extract()[0]
+        yield item
+        
+class GetURLsforForum(BaseSpider):
+    name = "urlsforfor"
+    allowed_domains = ['medhelp.org']
+    start_urls = ['http://www.medhelp.org/forums/list']
+    def parse(self,response):
+        sel = Selector(response)
+        list = sel.xpath('//div[@id="A_support"]/div[@class="alpha_col"]/div[@class="forum"]/a/@href').extract()
+        for i in list:
+            print urljoin('http://www.medhelp.org',i)
+
+class forumparse(BaseSpider):
+    name = "forum_parser"
+    def __init__(self, filename=None):
+        if filename:
+            data = open(filename).read().split("\n")
+            for i in data:
+                if i != '':
+                    self.start_urls.append(i)
+    allowed_domains = ['medhelp.org']
+    start_urls = []
+    def parse(self,response):
+        sel = Selector(response)
+        item = ForumItem()
+        item['url'] = get_base_url(response)
+        item['forum_id'] = response.url.split('/')[-1]
+        item['forum_title'] = sel.xpath('//title/text()').extract()[0]
+        keywords =  sel.xpath('//meta[@name="keywords"]/@content').extract()
+        if len(keywords)>0:
+            item['forum_keywords'] = keywords[0]
+        else:
+            item['forum_keywords'] = ''
+        description = sel.xpath('//meta[@name="description"]/@content').extract()
+        if len(description)>0:
+            item['forum_description'] = description[0]
+        else:
+            item['forum_description'] = ''
         yield item
